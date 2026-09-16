@@ -1,3 +1,6 @@
+import unicodedata
+from difflib import SequenceMatcher
+
 import requests
 from app.core.config import IGDB_CLIENT_ID, IGDB_CLIENT_SECRET
 
@@ -27,12 +30,23 @@ def eh_edicao_especial(nome: str) -> bool:
     return any(palavra in nome_lower for palavra in PALAVRAS_IGNORADAS)
 
 
+def normalizar(texto: str) -> str:
+    """Remove acentos e converte para minúsculas, para comparação de texto."""
+    sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+    return sem_acento.lower()
+
+
+def similaridade(a: str, b: str) -> float:
+    """Retorna um score de 0 a 1 de quão parecidos dois textos são."""
+    return SequenceMatcher(None, normalizar(a), normalizar(b)).ratio()
+
+
 def search_game(name: str, access_token: str) -> dict | None:
     """Busca jogos na IGDB pelo nome e retorna o resultado mais adequado.
 
-    Prioriza jogos com category == 0 (main_game) e que não pareçam
-    ser edições especiais/bundles pelo nome. Se nenhum resultado
-    passar nos dois critérios, retorna o primeiro da lista como fallback.
+    Entre os candidatos que são main_game e não parecem edições especiais,
+    escolhe o que tem o nome mais parecido com o termo buscado (em vez de
+    simplesmente confiar na ordem de relevância da IGDB).
     """
     headers = {
         "Client-ID": IGDB_CLIENT_ID,
@@ -50,12 +64,13 @@ def search_game(name: str, access_token: str) -> dict | None:
     if not resultados:
         return None
 
-    main_games = [
+    candidatos = [
         jogo for jogo in resultados
         if jogo.get("category", 0) == 0 and not eh_edicao_especial(jogo.get("name", ""))
     ]
 
-    if main_games:
-        return main_games[0]
+    if not candidatos:
+        return resultados[0]
 
-    return resultados[0]
+    melhor = max(candidatos, key=lambda jogo: similaridade(name, jogo.get("name", "")))
+    return melhor
