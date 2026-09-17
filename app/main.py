@@ -2,6 +2,7 @@ from app.core.database import SessionLocal
 from app.integrations.igdb_client import get_access_token
 from app.services.collector import collect_games
 from app.repositories.game_repository import save_game
+from app.exporters.excel_exporter import export_games_to_excel
 
 JOGOS_PARA_BUSCAR = [
     "The Witcher 3",
@@ -30,5 +31,9 @@ if __name__ == "__main__":
         for jogo in resultado["encontrados"]:
             salvo = save_game(db, jogo)
             print(f"  - {salvo.name} (id no banco: {salvo.id})")
+
+        print("\nExportando para Excel...")
+        export_games_to_excel(db, "output/jogos.xlsx")
+        print("Planilha gerada em output/jogos.xlsx")
     finally:
         db.close()
