@@ -14,21 +14,27 @@ Projeto de portfólio em desenvolvimento: uma plataforma para catalogar jogos au
   1. Filtra por categoria (`main_game`), descartando DLCs, expansões e bundles.
   2. Filtra por palavras-chave no nome (remaster, edition, goty, etc.), para pegar edições especiais mal categorizadas.
   3. Entre os candidatos restantes, escolhe o nome com maior similaridade textual ao termo buscado, em vez de confiar na ordem de relevância da própria API.
+- Persistência dos jogos encontrados em PostgreSQL, com prevenção de duplicação: jogos já existentes (identificados pelo `igdb_id`) são atualizados em vez de duplicados.
 
 ## Tecnologias
 
 - Python
 - Requests
 - python-dotenv
+- SQLAlchemy
+- PostgreSQL (via Docker)
+- psycopg2-binary
 
-*(a lista cresce conforme o projeto avança: PostgreSQL, SQLAlchemy, FastAPI, Docker, Pytest, GitHub Actions)*
+*(a lista cresce conforme o projeto avança: FastAPI, OpenPyXL, Docker completo da aplicação, Pytest, GitHub Actions)*
 
 ## Estrutura do projeto
 
 app/
-├── core/ # configuração (leitura de variáveis de ambiente)
+├── core/ # configuração (variáveis de ambiente) e conexão com o banco
 ├── integrations/ # cliente da IGDB (autenticação + busca)
 ├── services/ # regras de negócio (coleta em lote de jogos)
+├── models/ # modelos SQLAlchemy (tabelas do banco)
+├── repositories/ # acesso a dados (salvar/atualizar jogos no banco)
 └── main.py # ponto de entrada
 
 
@@ -42,9 +48,12 @@ app/
 
 IGDB_CLIENT_ID=seu_client_id
 IGDB_CLIENT_SECRET=seu_client_secret
+DATABASE_URL=postgresql://gametracker:gametracker@localhost:5432/gametracker
 
-   (veja como obter essas credenciais na seção abaixo)
-6. Rode: `python -m app.main`
+   (veja como obter as credenciais da IGDB na seção abaixo)
+6. Suba o banco de dados: `docker compose up -d`
+7. Crie as tabelas: `python create_tables.py`
+8. Rode: `python -m app.main`
 
 ## Como obter credenciais da IGDB
 
@@ -53,15 +62,29 @@ IGDB_CLIENT_SECRET=seu_client_secret
 3. Gere um Client Secret na página da aplicação.
 4. Use o Client ID e Client Secret gerados no `.env`.
 
+## Banco de dados
+
+O projeto usa PostgreSQL rodando via Docker, com dados persistidos em um volume nomeado (não são perdidos ao reiniciar o container).
+
+Para subir o banco:
+
+docker compose up -d
+
+
+Para criar as tabelas (primeira vez, ou após alterar os modelos):
+
+python create_tables.py
+
+
 ## Roadmap
 
 - [x] v0.1 — Consulta de um jogo na IGDB
 - [x] v0.2 — Coleta de uma lista de jogos e resolução de ambiguidade
-- [ ] v0.3 — Armazenamento em PostgreSQL
+- [x] v0.3 — Armazenamento em PostgreSQL
 - [ ] v0.4 — Exportação para Excel
 - [ ] v0.5 — API REST com FastAPI
 - [ ] v0.6 — Interface web
-- [ ] v0.7 — Docker
+- [ ] v0.7 — Docker (empacotamento completo da aplicação)
 - [ ] v0.8 — Testes automatizados
 - [ ] v0.9 — CI/CD com GitHub Actions
 - [ ] v1.0 — Documentação final
